@@ -348,8 +348,6 @@ class face_learner(object):
                 self.step += 1
 
 
-
-
     def schedule_lr(self):
         for params in self.optimizer_corr.param_groups:
             params['lr'] /= 10
