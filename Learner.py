@@ -1,5 +1,5 @@
 from data.data_pipe import de_preprocess, get_train_loader, get_val_data
-from model import Backbone, Arcface, MobileFaceNet, Am_softmax, l2_norm, ArcfaceMultiSphere
+from model import Backbone, Arcface, Backbone_work, MobileFaceNet, Am_softmax, MultiAm_softmax, l2_norm, ArcfaceMultiSphere, MobileFaceNetSoftmax, Softmax, MultiSphereSoftmax
 from verifacation import evaluate
 import torch
 from torch import optim
@@ -13,7 +13,14 @@ from PIL import Image
 from torchvision import transforms as trans
 import math
 import bcolz
-
+import logging
+import torch.nn as nn
+from pathlib import Path
+# from Learner_test import *
+import pickle
+from Permenate.conxy import Conxy
+import os
+import torch.distributed as dist
 
 
 def parameter_num_cal(net):
@@ -21,39 +28,59 @@ def parameter_num_cal(net):
     k = 0
     for i in params:
         l = 1
-        # print("该层的结构：" + str(list(i.size())))
         for j in i.size():
             l *= j
-        # print("该层参数和：" + str(l))
         k = k + l
     print("Paras:" + str(k))
 
 
 class face_learner(object):
-    def __init__(self, conf, inference=False):
+    def __init__(self, conf, inference=False, embedding_size=512):
+        conf.embedding_size = embedding_size
         print(conf)
+
+
         if conf.use_mobilfacenet:
-            self.model = MobileFaceNet(conf.embedding_size).to(conf.device)
-            print('MobileFaceNet model generated')
+            self.model = MobileFaceNet(conf.embedding_size).cuda()
         else:
-            self.model = Backbone(conf.net_depth, conf.drop_ratio, conf.net_mode).to(conf.device)
+            self.model = Backbone(conf.net_depth, conf.drop_ratio, conf.net_mode).cuda()
             print('{}_{} model generated'.format(conf.net_mode, conf.net_depth))
+
         parameter_num_cal(self.model)
+
+
+        self.milestones = conf.milestones
+        self.loader, self.class_num = get_train_loader(conf)
+        self.step = 0
+        self.agedb_30, self.cfp_fp, self.lfw, self.calfw, self.cplfw, self.vgg2_fp, self.agedb_30_issame, self.cfp_fp_issame, self.lfw_issame, self.calfw_issame, self.cplfw_issame, self.vgg2_fp_issame = get_val_data(self.loader.dataset.root.parent)
+        self.writer = SummaryWriter(conf.log_path)
+
         if not inference:
             self.milestones = conf.milestones
-            self.loader, self.class_num = get_train_loader(conf)        
+            self.loader, self.class_num = get_train_loader(conf)
 
             self.writer = SummaryWriter(conf.log_path)
             self.step = 0
-            if conf.multi_sphere:
-                self.head = ArcfaceMultiSphere(embedding_size=conf.embedding_size, classnum=self.class_num).to(conf.device)
-            else:
-                self.head = Arcface(embedding_size=conf.embedding_size, classnum=self.class_num).to(conf.device)
 
-            print('two model heads generated')
+            if conf.multi_sphere:
+                if conf.arcface_loss:
+                    self.head = ArcfaceMultiSphere(embedding_size=conf.embedding_size, classnum=self.class_num, num_shpere=conf.num_sphere, m=conf.m).to(conf.device)
+                elif conf.am_softmax:
+                    self.head = MultiAm_softmax(embedding_size=conf.embedding_size, classnum=self.class_num, num_sphere=conf.num_sphere, m = conf.m).to(conf.device)
+                else:
+                    self.head = MultiSphereSoftmax(embedding_size=conf.embedding_size, classnum=self.class_num, num_sphere=conf.num_sphere).to(conf.device)
+
+            else:
+                    if conf.arcface_loss:
+                        self.head = Arcface(embedding_size=conf.embedding_size, classnum=self.class_num).to(conf.device)
+                    elif conf.am_softmax:
+                        self.head = Am_softmax(embedding_size=conf.embedding_size, classnum=self.class_num).to(conf.device)
+                    else:
+                        self.head = Softmax(embedding_size=conf.embedding_size, classnum=self.class_num).to(conf.device)
+
 
             paras_only_bn, paras_wo_bn = separate_bn_paras(self.model)
-            
+
             if conf.use_mobilfacenet:
                 if conf.multi_sphere:
                     self.optimizer = optim.SGD([
@@ -68,18 +95,27 @@ class face_learner(object):
                                         {'params': paras_only_bn}
                                     ], lr = conf.lr, momentum = conf.momentum)
             else:
-                self.optimizer = optim.SGD([
-                                    {'params': paras_wo_bn + [self.head.kernel], 'weight_decay': 5e-4},
-                                    {'params': paras_only_bn}
-                                ], lr = conf.lr, momentum = conf.momentum)
-            print(self.optimizer)
-#             self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, patience=40, verbose=True)
+                if conf.multi_sphere:
+                    self.optimizer = optim.SGD([
+                        {'params': paras_wo_bn + self.head.kernel_list, 'weight_decay': 5e-4},
+                        {'params': paras_only_bn}
+                    ], lr=conf.lr, momentum=conf.momentum)
+                else:
+                    self.optimizer = optim.SGD([
+                                        {'params': paras_wo_bn + [self.head.kernel], 'weight_decay': 5e-4},
+                                        {'params': paras_only_bn}
+                                    ], lr = conf.lr, momentum = conf.momentum)
 
-            print('optimizers generated')    
+
+            print(self.optimizer)
+
+            self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, patience=40, verbose=True)
+
+            print('optimizers generated')
             self.board_loss_every = len(self.loader)//100
-            self.evaluate_every = len(self.loader)//10
+            self.evaluate_every = len(self.loader)//100
             self.save_every = len(self.loader)//5
-            self.agedb_30, self.cfp_fp, self.lfw, self.agedb_30_issame, self.cfp_fp_issame, self.lfw_issame = get_val_data(self.loader.dataset.root.parent)
+            self.agedb_30, self.cfp_fp, self.lfw, self.calfw, self.cplfw, self.vgg2_fp, self.agedb_30_issame, self.cfp_fp_issame, self.lfw_issame, self.calfw_issame, self.cplfw_issame, self.vgg2_fp_issame = get_val_data(self.loader.dataset.root.parent)
         else:
             self.threshold = conf.threshold
     
@@ -98,29 +134,43 @@ class face_learner(object):
             torch.save(
                 self.optimizer.state_dict(), save_path /
                 ('optimizer_{}_accuracy:{}_step:{}_{}.pth'.format(get_time(), accuracy, self.step, extra)))
-    
-    def load_state(self, conf, fixed_str, from_save_folder=False, model_only=False):
-        if from_save_folder:
-            save_path = conf.save_path
-        else:
-            save_path = conf.model_path            
+
+    def get_new_state(self, path):
+        state_dict = torch.load(path)
+
+        from collections import OrderedDict
+        new_state_dict = OrderedDict()
+        for k, v in state_dict.items():
+            if 'module' not in k:
+                k = 'module.' + k
+            else:
+                k = k.replace('features.module.', 'module.features.')
+            new_state_dict[k] = v
+        return new_state_dict
+
+    def load_state(self, save_path, fixed_str, model_only=False):
         self.model.load_state_dict(torch.load(save_path/'model_{}'.format(fixed_str)))
+
         if not model_only:
             self.head.load_state_dict(torch.load(save_path/'head_{}'.format(fixed_str)))
             self.optimizer.load_state_dict(torch.load(save_path/'optimizer_{}'.format(fixed_str)))
+            print(self.optimizer)
         
-    def board_val(self, db_name, accuracy, best_threshold, roc_curve_tensor):
+    def board_val(self, db_name, accuracy, best_threshold, roc_curve_tensor, angle_info):
         self.writer.add_scalar('{}_accuracy'.format(db_name), accuracy, self.step)
         self.writer.add_scalar('{}_best_threshold'.format(db_name), best_threshold, self.step)
         self.writer.add_image('{}_roc_curve'.format(db_name), roc_curve_tensor, self.step)
-#         self.writer.add_scalar('{}_val:true accept ratio'.format(db_name), val, self.step)
-#         self.writer.add_scalar('{}_val_std'.format(db_name), val_std, self.step)
-#         self.writer.add_scalar('{}_far:False Acceptance Ratio'.format(db_name), far, self.step)
-        
-    def evaluate(self, conf, carray, issame, nrof_folds = 5, tta = False):
+        self.writer.add_scalar('{}_same_pair_angle_mean'.format(db_name), angle_info['same_pair_angle_mean'], self.step)
+        self.writer.add_scalar('{}_same_pair_angle_var'.format(db_name), angle_info['same_pair_angle_var'], self.step)
+        self.writer.add_scalar('{}_diff_pair_angle_mean'.format(db_name), angle_info['diff_pair_angle_mean'], self.step)
+        self.writer.add_scalar('{}_diff_pair_angle_var'.format(db_name), angle_info['diff_pair_angle_var'], self.step)
+
+
+    def evaluate(self, conf, carray, issame, nrof_folds = 10, tta = False, n=1, show_angle=False):
         self.model.eval()
         idx = 0
-        embeddings = np.zeros([len(carray), conf.embedding_size])
+        embeddings = np.zeros([len(carray), conf.embedding_size//n])
+        i = 0
         with torch.no_grad():
             while idx + conf.batch_size <= len(carray):
                 batch = torch.tensor(carray[idx:idx + conf.batch_size])
@@ -129,7 +179,7 @@ class face_learner(object):
                     emb_batch = self.model(batch.to(conf.device)) + self.model(fliped.to(conf.device))
                     embeddings[idx:idx + conf.batch_size] = l2_norm(emb_batch)
                 else:
-                    embeddings[idx:idx + conf.batch_size] = self.model(batch.to(conf.device)).cpu()
+                    embeddings[idx:idx + conf.batch_size] = self.model(batch.to(conf.device)).cpu()[:, i*conf.embedding_size//n:(i+1)*conf.embedding_size//n]
                 idx += conf.batch_size
             if idx < len(carray):
                 batch = torch.tensor(carray[idx:])            
@@ -138,12 +188,12 @@ class face_learner(object):
                     emb_batch = self.model(batch.to(conf.device)) + self.model(fliped.to(conf.device))
                     embeddings[idx:] = l2_norm(emb_batch)
                 else:
-                    embeddings[idx:] = self.model(batch.to(conf.device)).cpu()
-        tpr, fpr, accuracy, best_thresholds = evaluate(embeddings, issame, nrof_folds)
+                    embeddings[idx:] = self.model(batch.to(conf.device)).cpu()[:, i*conf.embedding_size//n:(i+1)*conf.embedding_size//n]
+        tpr, fpr, accuracy, best_thresholds, angle_info= evaluate(embeddings, issame, nrof_folds)
         buf = gen_plot(fpr, tpr)
         roc_curve = Image.open(buf)
         roc_curve_tensor = trans.ToTensor()(roc_curve)
-        return accuracy.mean(), best_thresholds.mean(), roc_curve_tensor
+        return accuracy.mean(), best_thresholds.mean(), roc_curve_tensor, angle_info
     
     def find_lr(self,
                 conf,
@@ -213,19 +263,31 @@ class face_learner(object):
 
     def train(self, conf, epochs):
         self.model.train()
-        running_loss = 0.            
+        running_loss = 0.
+
+
+
+        logging.basicConfig(filename=conf.log_path/'log.txt',
+                            level=logging.INFO,
+                            format="%(asctime)s %(name)s %(levelname)s %(message)s",
+                            datefmt = '%Y-%m-%d  %H:%M:%S %a')
+        logging.info('\n******\nnum of sphere is: {},\nnet is: {},\ndepth is: {},\nlr is: {},\nbatch size is: {}\n******'
+                     .format(conf.num_sphere, conf.net_mode, conf.net_depth, conf.lr, conf.batch_size))
         for e in range(epochs):
-            print('epoch {} started'.format(e))
+            print('epoch {} started,all is {}'.format(e, epochs))
             if e == self.milestones[0]:
                 self.schedule_lr()
             if e == self.milestones[1]:
                 self.schedule_lr()      
             if e == self.milestones[2]:
-                self.schedule_lr()                                 
+                self.schedule_lr()
+
+
             for imgs, labels in tqdm(iter(self.loader)):
+                self.model.train()
+
                 imgs = imgs.to(conf.device)
                 labels = labels.to(conf.device)
-                self.optimizer.zero_grad()
                 embeddings = self.model(imgs)
                 thetas = self.head(embeddings, labels)
 
@@ -236,37 +298,61 @@ class face_learner(object):
                 else:
                     loss = conf.ce_loss(thetas, labels)
 
-
-
-
-                loss.backward()
                 running_loss += loss.item()
+                self.optimizer.zero_grad()
+                loss.backward()
                 self.optimizer.step()
-                
+
                 if self.step % self.board_loss_every == 0 and self.step != 0:
                     loss_board = running_loss / self.board_loss_every
                     self.writer.add_scalar('train_loss', loss_board, self.step)
                     running_loss = 0.
-                
+
                 if self.step % self.evaluate_every == 0 and self.step != 0:
-                    accuracy, best_threshold, roc_curve_tensor = self.evaluate(conf, self.agedb_30, self.agedb_30_issame)
-                    print('agedb_30_acc:', accuracy)
-                    self.board_val('agedb_30', accuracy, best_threshold, roc_curve_tensor)
-                    accuracy, best_threshold, roc_curve_tensor = self.evaluate(conf, self.lfw, self.lfw_issame)
+                    accuracy, best_threshold, roc_curve_tensor, angle_info = self.evaluate(conf, self.agedb_30, self.agedb_30_issame,show_angle=True)
+                    print('age_db_acc:', accuracy)
+                    self.board_val('agedb_30', accuracy, best_threshold, roc_curve_tensor, angle_info)
+                    logging.info('agedb_30 acc: {}'.format(accuracy))
+
+                    accuracy, best_threshold, roc_curve_tensor, angle_info = self.evaluate(conf, self.lfw, self.lfw_issame)
                     print('lfw_acc:', accuracy)
-                    self.board_val('lfw', accuracy, best_threshold, roc_curve_tensor)
-                    accuracy, best_threshold, roc_curve_tensor = self.evaluate(conf, self.cfp_fp, self.cfp_fp_issame)
-                    print('cfp_fp_acc:', accuracy)
-                    self.board_val('cfp_fp', accuracy, best_threshold, roc_curve_tensor)
+                    self.board_val('lfw', accuracy, best_threshold, roc_curve_tensor,angle_info)
+                    logging.info('lfw acc: {}'.format(accuracy))
+
+                    accuracy, best_threshold, roc_curve_tensor, angle_info = self.evaluate(conf, self.cfp_fp, self.cfp_fp_issame)
+                    print('cfp_acc:', accuracy)
+                    self.board_val('cfp', accuracy, best_threshold, roc_curve_tensor, angle_info)
+                    logging.info('cfp acc: {}'.format(accuracy))
+
+
+                    accuracy, best_threshold, roc_curve_tensor, angle_info = self.evaluate(conf, self.calfw, self.calfw_issame)
+                    print('calfw_acc:', accuracy)
+                    self.board_val('calfw', accuracy, best_threshold, roc_curve_tensor,angle_info)
+                    logging.info('calfw acc: {}'.format(accuracy))
+
+
+                    accuracy, best_threshold, roc_curve_tensor, angle_info = self.evaluate(conf, self.cplfw, self.cplfw_issame)
+                    print('cplfw_acc:', accuracy)
+                    self.board_val('cplfw', accuracy, best_threshold, roc_curve_tensor, angle_info)
+                    logging.info('cplfw acc: {}'.format(accuracy))
+
+
+                    accuracy, best_threshold, roc_curve_tensor, angle_info = self.evaluate(conf, self.vgg2_fp,
+                                                                               self.vgg2_fp_issame)
+                    print('vgg2_acc:', accuracy)
+                    self.board_val('vgg2', accuracy, best_threshold, roc_curve_tensor, angle_info)
+                    logging.info('vgg2_fp acc: {}'.format(accuracy))
+
+
                     self.model.train()
-                if self.step % self.save_every == 0 and self.step != 0:
-                    self.save_state(conf, accuracy)
-                    
                 self.step += 1
-                
-        self.save_state(conf, accuracy, to_save_folder=True, extra='final')
+
+
+
 
     def schedule_lr(self):
+        for params in self.optimizer_corr.param_groups:
+            params['lr'] /= 10
         for params in self.optimizer.param_groups:                 
             params['lr'] /= 10
         print(self.optimizer)

@@ -28,10 +28,11 @@ from sklearn.model_selection import KFold
 from sklearn.decomposition import PCA
 import sklearn
 from scipy import interpolate
+import pickle
 import datetime
 import mxnet as mx
 
-def calculate_roc(thresholds, embeddings1, embeddings2, actual_issame, nrof_folds=10, pca=0):
+def calculate_roc(thresholds, embeddings1, embeddings2, actual_issame, nrof_folds=10, pca=0,show_angle=False):
     assert (embeddings1.shape[0] == embeddings2.shape[0])
     assert (embeddings1.shape[1] == embeddings2.shape[1])
     nrof_pairs = min(len(actual_issame), embeddings1.shape[0])
@@ -43,15 +44,13 @@ def calculate_roc(thresholds, embeddings1, embeddings2, actual_issame, nrof_fold
     accuracy = np.zeros((nrof_folds))
     best_thresholds = np.zeros((nrof_folds))
     indices = np.arange(nrof_pairs)
-    # print('pca', pca)
 
     if pca == 0:
         diff = np.subtract(embeddings1, embeddings2)
         dist = np.sum(np.square(diff), 1)
 
     for fold_idx, (train_set, test_set) in enumerate(k_fold.split(indices)):
-        # print('train_set', train_set)
-        # print('test_set', test_set)
+
         if pca > 0:
             print('doing pca on', fold_idx)
             embed1_train = embeddings1[train_set]
@@ -70,6 +69,7 @@ def calculate_roc(thresholds, embeddings1, embeddings2, actual_issame, nrof_fold
 
         # Find the best threshold for the fold
         acc_train = np.zeros((nrof_thresholds))
+
         for threshold_idx, threshold in enumerate(thresholds):
             _, _, acc_train[threshold_idx] = calculate_accuracy(threshold, dist[train_set], actual_issame[train_set])
         best_threshold_index = np.argmax(acc_train)
@@ -83,9 +83,25 @@ def calculate_roc(thresholds, embeddings1, embeddings2, actual_issame, nrof_fold
         _, _, accuracy[fold_idx] = calculate_accuracy(thresholds[best_threshold_index], dist[test_set],
                                                       actual_issame[test_set])
 
+    angle_info = {}
+    if show_angle:
+        l = len(dist)
+        dis_same = []
+        dis_not_same = []
+        for i in range(l):
+            if actual_issame[i] == 1:
+                dis_same.append(np.arccos((2-dist[i])*0.5)/np.pi * 180)
+            else:
+                dis_not_same.append(np.arccos((2-dist[i])*0.5)/np.pi * 180)
+
+        angle_info['same_pair_angle_mean'] = np.mean(dis_same)
+        angle_info['same_pair_angle_var'] = np.std(dis_same)
+        angle_info['diff_pair_angle_mean'] = np.mean(dis_not_same)
+        angle_info['diff_pair_angle_var'] = np.std(dis_not_same)
+
     tpr = np.mean(tprs, 0)
     fpr = np.mean(fprs, 0)
-    return tpr, fpr, accuracy, best_thresholds
+    return tpr, fpr, accuracy, best_thresholds, angle_info
 
 
 def calculate_accuracy(threshold, dist, actual_issame):
@@ -161,10 +177,8 @@ def evaluate(embeddings, actual_issame, nrof_folds=10, pca=0):
     thresholds = np.arange(0, 4, 0.01)
     embeddings1 = embeddings[0::2]
     embeddings2 = embeddings[1::2]
-    tpr, fpr, accuracy, best_thresholds = calculate_roc(thresholds, embeddings1, embeddings2,
-                                       np.asarray(actual_issame), nrof_folds=nrof_folds, pca=pca)
-#     thresholds = np.arange(0, 4, 0.001)
-#     val, val_std, far = calculate_val(thresholds, embeddings1, embeddings2,
-#                                       np.asarray(actual_issame), 1e-3, nrof_folds=nrof_folds)
-#     return tpr, fpr, accuracy, best_thresholds, val, val_std, far
-    return tpr, fpr, accuracy, best_thresholds
+
+    tpr, fpr, accuracy, best_thresholds, angle_info = calculate_roc(thresholds, embeddings1, embeddings2,
+                                       np.asarray(actual_issame), nrof_folds=nrof_folds, pca=pca, show_angle=True)
+
+    return tpr, fpr, accuracy, best_thresholds, angle_info
