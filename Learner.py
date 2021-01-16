@@ -13,6 +13,7 @@ from PIL import Image
 from torchvision import transforms as trans
 import math
 import bcolz
+import sys
 import logging
 import torch.nn as nn
 from pathlib import Path
@@ -165,7 +166,6 @@ class face_learner(object):
         self.writer.add_scalar('{}_diff_pair_angle_mean'.format(db_name), angle_info['diff_pair_angle_mean'], self.step)
         self.writer.add_scalar('{}_diff_pair_angle_var'.format(db_name), angle_info['diff_pair_angle_var'], self.step)
 
-
     def evaluate(self, conf, carray, issame, nrof_folds = 10, tta = False, n=1, show_angle=False):
         self.model.eval()
         idx = 0
@@ -250,7 +250,6 @@ class face_learner(object):
             self.writer.add_scalar('log_lr', math.log10(lr), batch_num)
             #Do the SGD step
             #Update the lr for the next step
-
             loss.backward()
             self.optimizer.step()
 
@@ -261,11 +260,37 @@ class face_learner(object):
                 plt.plot(log_lrs[10:-5], losses[10:-5])
                 return log_lrs, losses    
 
+    def model_evaluation(self, conf):
+        self.model.load_state_dict(torch.load(conf.pretrained_model_path))
+        accuracy, best_threshold, roc_curve_tensor, angle_info = self.evaluate(conf, self.agedb_30,
+                                                                               self.agedb_30_issame,
+                                                                               show_angle=True)
+        print('age_db_acc:', accuracy)
+
+        accuracy, best_threshold, roc_curve_tensor, angle_info = self.evaluate(conf, self.lfw, self.lfw_issame)
+        print('lfw_acc:', accuracy)
+
+        accuracy, best_threshold, roc_curve_tensor, angle_info = self.evaluate(conf, self.cfp_fp,
+                                                                               self.cfp_fp_issame)
+        print('cfp_acc:', accuracy)
+
+        accuracy, best_threshold, roc_curve_tensor, angle_info = self.evaluate(conf, self.calfw, self.calfw_issame)
+        print('calfw_acc:', accuracy)
+
+        accuracy, best_threshold, roc_curve_tensor, angle_info = self.evaluate(conf, self.cplfw, self.cplfw_issame)
+        print('cplfw_acc:', accuracy)
+
+        accuracy, best_threshold, roc_curve_tensor, angle_info = self.evaluate(conf, self.vgg2_fp,
+                                                                               self.vgg2_fp_issame)
+        print('vgg2_acc:', accuracy)
+
     def train(self, conf, epochs):
         self.model.train()
         running_loss = 0.
 
-
+        if conf.pretrain:
+            self.model_evaluation(conf)
+            sys.exit(0)
 
         logging.basicConfig(filename=conf.log_path/'log.txt',
                             level=logging.INFO,

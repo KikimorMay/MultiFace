@@ -20,15 +20,18 @@ if __name__ == '__main__':
     parser.add_argument("-b", "--batch_size", help="batch_size", default=180, type=int)
     parser.add_argument("-w", "--num_workers", help="workers number", default=3, type=int)
     parser.add_argument("-d", "--data_mode", help="use which database ",default='emore', type=str)
-    parser.add_argument("--work_path" ,default='work_abondon', type=str)
+    parser.add_argument("--work_path" ,default='work_path', type=str)
     parser.add_argument("--m" ,help='the margin', default=0.3, type=float)
     parser.add_argument("--drop_ratio", help='the drop_ratio', default=0.6, type=float)
+    parser.add_argument("--pretrain", action='store_true', default=False, help='load_pretrain_model')
+    parser.add_argument("--pretrained_model_path", help="the pretrained model path", default='', type=str)
+
+
 
     args = parser.parse_args()
 
     conf = get_config()
 
-    conf.pretrain = False
 
     if conf.num_sphere > 1:
         conf.multi_sphere = True
@@ -56,6 +59,11 @@ if __name__ == '__main__':
             conf.m = args.m
 
     conf.num_sphere = args.num_sphere
+
+    if args.pretrain:
+        conf.pretrain = True
+        assert len(args.pretrained_model_path)
+        conf.pretrained_model_path = args.pretrained_model_path
 
 
     conf.drop_ratio = args.drop_ratio

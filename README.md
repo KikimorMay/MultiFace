@@ -1,14 +1,10 @@
-# InsightFace_Pytorch
-
-Pytorch0.4.1 codes for InsightFace
+MultiFace_Pytorch
 
 ------
 
 ## 1. Intro
 
-- This repo is a reimplementation of Arcface[(paper)](https://arxiv.org/abs/1801.07698), or Insightface[(github)](https://github.com/deepinsight/insightface)
-- For models, including the pytorch implementation of the backbone modules of Arcface and MobileFacenet
-- Codes for transform MXNET data records in Insightface[(github)](https://github.com/deepinsight/insightface) to Image Datafolders are provided
+- This repo is a implementation of MultiFace[(paper)](https://arxiv.org/abs/1801.07698)
 - Pretrained models are posted, include the [MobileFacenet](https://arxiv.org/abs/1804.07573) and IR-SE50 in the original paper
 
 ------
@@ -17,15 +13,25 @@ Pytorch0.4.1 codes for InsightFace
 
 [IR-SE50 @ BaiduNetdisk](https://pan.baidu.com/s/12BUjjwy1uUTEF9HCx5qvoQ), [IR-SE50 @ Onedrive](https://1drv.ms/u/s!AhMqVPD44cDOhkPsOU2S_HFpY9dC)
 
-| LFW(%) | CFP-FF(%) | CFP-FP(%) | AgeDB-30(%) | calfw(%) | cplfw(%) | vgg2_fp(%) |
-| ------ | --------- | --------- | ----------- | -------- | -------- | ---------- |
-| 0.9952 | 0.9962    | 0.9504    | 0.9622      | 0.9557   | 0.9107   | 0.9386     |
+| Loss               | LFW(%) | CFP-FF(%) | CFP-FP(%) | AgeDB-30(%) | calfw(%) | cplfw(%) |
+| ------------------ | ------ | --------- | --------- | ----------- | :------: | -------- |
+| Softmax            | 0.9962 | 0.9504    | 0.9622    | 0.9557      |  0.9107  |          |
+| Multi-Arcface(N=2) |        |           |           |             |          |          |
+| Cosfacce           |        |           |           |             |          |          |
+| Multi-Cosface(N=2) |        |           |           |             |          |          |
 
 [Mobilefacenet @ BaiduNetDisk](https://pan.baidu.com/s/1hqNNkcAjQOSxUjofboN6qg), [Mobilefacenet @ OneDrive](https://1drv.ms/u/s!AhMqVPD44cDOhkSMHodSH4rhfb5u)
 
-| LFW(%) | CFP-FF(%) | CFP-FP(%) | AgeDB-30(%) | calfw(%) | cplfw(%) | vgg2_fp(%) |
-| ------ | --------- | --------- | ----------- | -------- | -------- | ---------- |
-| 0.9918 | 0.9891    | 0.8986    | 0.9347      | 0.9402   | 0.866    | 0.9100     |
+| Loss               | LFW(%) | CFP-FF(%) | CFP-FP(%) | AgeDB-30(%) | calfw(%) | cplfw(%) |
+| ------------------ | ------ | --------- | --------- | ----------- | -------- | -------- |
+| Softmax            | 0.9918 |           |           | 0.9437      | 0.9365   | 0.8817   |
+| Multi-Softmax(N=4) |        |           |           |             |          |          |
+| Arcface            |        |           |           |             |          |          |
+| Multi-Arcface(N=2) |        |           |           |             |          |          |
+| Multi-Arcface(N=4) |        |           |           |             |          |          |
+| Cosface            |        |           |           |             |          |          |
+| Multi-Cosface(N=2) |        |           |           |             |          |          |
+| Multi-Cosface(N=4) |        |           |           |             |          |          |
 
 ## 3. How to use
 
@@ -153,7 +159,7 @@ python train.py -b [batch_size] -lr [learning rate] -e [epochs]
 
 ## 4. References 
 
-- This repo is mainly inspired by [deepinsight/insightface](https://github.com/deepinsight/insightface) and [InsightFace_TF](https://github.com/auroua/InsightFace_TF)
+- This code is based on the implementations of   [TreB1eN/*InsightFace*_Pytorch](https://github.com/TreB1eN/InsightFace_Pytorch) and [deepinsight/insightface](https://github.com/deepinsight/insightface) 
 
 ## PS
 
