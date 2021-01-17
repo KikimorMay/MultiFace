@@ -13,25 +13,29 @@ MultiFace_Pytorch
 
 [IR-SE50 @ BaiduNetdisk](https://pan.baidu.com/s/12BUjjwy1uUTEF9HCx5qvoQ), [IR-SE50 @ Onedrive](https://1drv.ms/u/s!AhMqVPD44cDOhkPsOU2S_HFpY9dC)
 
-| Loss               | LFW(%) | CFP-FF(%) | CFP-FP(%) | AgeDB-30(%) | calfw(%) | cplfw(%) |
-| ------------------ | ------ | --------- | --------- | ----------- | :------: | -------- |
-| Softmax            | 0.9962 | 0.9504    | 0.9622    | 0.9557      |  0.9107  |          |
-| Multi-Arcface(N=2) |        |           |           |             |          |          |
-| Cosfacce           |        |           |           |             |          |          |
-| Multi-Cosface(N=2) |        |           |           |             |          |          |
+| Loss               | LFW(%) | CFP-FP(%) | AgeDB-30(%) | calfw(%) | cplfw(%) |
+| ------------------ | ------ | --------- | ----------- | -------- | :------: |
+| Arcface            | 9962   | 0.9504    | 0.9622      | 0.9557   |  0.9107  |
+| Multi-Arcface(N=2) |        |           |             |          |          |
+| Cosfacce           |        |           |             |          |          |
+| Multi-Cosface(N=2) |        |           |             |          |          |
 
 [Mobilefacenet @ BaiduNetDisk](https://pan.baidu.com/s/1hqNNkcAjQOSxUjofboN6qg), [Mobilefacenet @ OneDrive](https://1drv.ms/u/s!AhMqVPD44cDOhkSMHodSH4rhfb5u)
 
-| Loss               | LFW(%) | CFP-FF(%) | CFP-FP(%) | AgeDB-30(%) | calfw(%) | cplfw(%) |
-| ------------------ | ------ | --------- | --------- | ----------- | -------- | -------- |
-| Softmax            | 0.9918 |           |           | 0.9437      | 0.9365   | 0.8817   |
-| Multi-Softmax(N=4) |        |           |           |             |          |          |
-| Arcface            |        |           |           |             |          |          |
-| Multi-Arcface(N=2) |        |           |           |             |          |          |
-| Multi-Arcface(N=4) |        |           |           |             |          |          |
-| Cosface            |        |           |           |             |          |          |
-| Multi-Cosface(N=2) |        |           |           |             |          |          |
-| Multi-Cosface(N=4) |        |           |           |             |          |          |
+| Loss               |  LFW(%)   | CFP-FP(%) | AgeDB-30(%) | calfw(%)  | cplfw(%)  |
+| ------------------ | :-------: | :-------: | :---------: | :-------: | :-------: |
+| Softmax            |   99.22   |   92.84   |    94.00    |   93.80   |   88.30   |
+| Multi-Softmax(N=4) | **99.40** | **95.46** |  **95.25**  | **95.15** | **90.22** |
+
+| Loss               |  LFW(%)   | CFP-FP(%) | AgeDB-30(%) | calfw(%)  | cplfw(%)  |
+| ------------------ | :-------: | :-------: | :---------: | :-------: | :-------: |
+| Arcface            |   99.45   |   92.27   |    96.03    |   95.12   |   87.75   |
+| Multi-Arcface(N=2) |   99.52   |   93.41   |  **96.35**  | **95.28** |   88.65   |
+| Cosface            |   99.43   |   92.83   |    95.77    |   94.97   |   88.88   |
+| Multi-Cosface(N=2) |   99.50   |   93.58   |    96.17    |   95.20   |   89.03   |
+| Multi-Cosface(N=4) | **99.60** | **94.11** |    96.13    |   95.18   | **89.47** |
+
+
 
 ## 3. How to use
 
