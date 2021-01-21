@@ -19,7 +19,7 @@ import torch.nn as nn
 from pathlib import Path
 # from Learner_test import *
 import pickle
-from Permenate.conxy import Conxy
+# from Permenate.conxy import Conxy
 import os
 import torch.distributed as dist
 
@@ -114,7 +114,7 @@ class face_learner(object):
 
             print('optimizers generated')
             self.board_loss_every = len(self.loader)//100
-            self.evaluate_every = len(self.loader)//100
+            self.evaluate_every = len(self.loader)//10
             self.save_every = len(self.loader)//5
             self.agedb_30, self.cfp_fp, self.lfw, self.calfw, self.cplfw, self.vgg2_fp, self.agedb_30_issame, self.cfp_fp_issame, self.lfw_issame, self.calfw_issame, self.cplfw_issame, self.vgg2_fp_issame = get_val_data(self.loader.dataset.root.parent)
         else:
@@ -166,7 +166,7 @@ class face_learner(object):
         self.writer.add_scalar('{}_diff_pair_angle_mean'.format(db_name), angle_info['diff_pair_angle_mean'], self.step)
         self.writer.add_scalar('{}_diff_pair_angle_var'.format(db_name), angle_info['diff_pair_angle_var'], self.step)
 
-    def evaluate(self, conf, carray, issame, nrof_folds = 10, tta = False, n=1, show_angle=False):
+    def evaluate(self, conf, carray, issame, nrof_folds = 10, tta = False, n=1):
         self.model.eval()
         idx = 0
         embeddings = np.zeros([len(carray), conf.embedding_size//n])
@@ -263,8 +263,7 @@ class face_learner(object):
     def model_evaluation(self, conf):
         self.model.load_state_dict(torch.load(conf.pretrained_model_path))
         accuracy, best_threshold, roc_curve_tensor, angle_info = self.evaluate(conf, self.agedb_30,
-                                                                               self.agedb_30_issame,
-                                                                               show_angle=True,tta=True)
+                                                                               self.agedb_30_issame,tta=True)
         print('age_db_acc:', accuracy)
 
         accuracy, best_threshold, roc_curve_tensor, angle_info = self.evaluate(conf, self.lfw, self.lfw_issame, tta=True)
@@ -334,7 +333,7 @@ class face_learner(object):
                     running_loss = 0.
 
                 if self.step % self.evaluate_every == 0 and self.step != 0:
-                    accuracy, best_threshold, roc_curve_tensor, angle_info = self.evaluate(conf, self.agedb_30, self.agedb_30_issame,show_angle=True)
+                    accuracy, best_threshold, roc_curve_tensor, angle_info = self.evaluate(conf, self.agedb_30, self.agedb_30_issame)
                     print('age_db_acc:', accuracy)
                     self.board_val('agedb_30', accuracy, best_threshold, roc_curve_tensor, angle_info)
                     logging.info('agedb_30 acc: {}'.format(accuracy))
