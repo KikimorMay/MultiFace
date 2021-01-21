@@ -39,7 +39,7 @@ MultiFace_Pytorch
 
 ### 3.1 Prepare training dataset
 
-download the refined dataset: (emore recommended, our method is )
+download the refined dataset: (emore recommended, our method is suitable for larger dataset )
 
 - [emore dataset @ BaiduDrive](https://pan.baidu.com/s/1eXohwNBHbbKXh5KHyItVhQ), [emore dataset @ Dropbox](https://www.dropbox.com/s/wpx6tqjf0y5mf6r/faces_ms1m-refine-v2_112x112.zip?dl=0)
 
