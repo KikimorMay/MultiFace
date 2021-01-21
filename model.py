@@ -17,9 +17,10 @@ def l2_norm(input,axis=1):
     return output
 
 class SEModule(Module):
-    def __init__(self, channels, reduction, feature_shape):
+    def __init__(self, channels, reduction):
         super(SEModule, self).__init__()
-        self.avg_pool = AvgPool2d(feature_shape)
+        # self.avg_pool = AvgPool2d(feature_shape)
+        self.avg_pool = AdaptiveAvgPool2d(1)
         self.fc1 = Conv2d(
             channels, channels // reduction, kernel_size=1, padding=0 ,bias=False)
         self.relu = ReLU(inplace=True)
@@ -69,7 +70,7 @@ class bottleneck_IR_SE(Module):
             PReLU(depth),
             Conv2d(depth, depth, (3,3), stride, 1 ,bias=False),
             BatchNorm2d(depth),
-            SEModule(depth,8)
+            SEModule(depth,16)
             )
     def forward(self,x):
         shortcut = self.shortcut_layer(x)
@@ -135,17 +136,17 @@ def get_blocks(num_layers):
         ]
     if num_layers == 50:
         blocks = [
-            get_block(in_channel=64, depth=64, num_units=3),
-            get_block(in_channel=64, depth=128, num_units=4),
-            get_block(in_channel=128, depth=256, num_units=14),
-            get_block(in_channel=256, depth=512, num_units=3)
+            get_block(in_channel=64, depth=64, feature_shape=56,num_units=3),
+            get_block(in_channel=64, depth=128, feature_shape=28, num_units=4),
+            get_block(in_channel=128, depth=256, feature_shape=14,num_units=14),
+            get_block(in_channel=256, depth=512, feature_shape=7, num_units=3)
         ]
     elif num_layers == 100:
         blocks = [
-            get_block(in_channel=64, depth=64, num_units=3),
-            get_block(in_channel=64, depth=128, num_units=13),
-            get_block(in_channel=128, depth=256, num_units=30),
-            get_block(in_channel=256, depth=512, num_units=3)
+            get_block(in_channel=64, depth=64,feature_shape=56, num_units=3),
+            get_block(in_channel=64, depth=128, feature_shape=28,num_units=13),
+            get_block(in_channel=128, depth=256,feature_shape=14, num_units=30),
+            get_block(in_channel=256, depth=512,feature_shape=7, num_units=3)
         ]
     elif num_layers == 152:
         blocks = [

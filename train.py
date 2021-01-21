@@ -24,7 +24,7 @@ if __name__ == '__main__':
     parser.add_argument("--m" ,help='the margin', default=0.3, type=float)
     parser.add_argument("--drop_ratio", help='the drop_ratio', default=0.6, type=float)
     parser.add_argument("--pretrain", action='store_true', default=False, help='load_pretrain_model')
-    parser.add_argument("--pretrained_model_path", help="the pretrained model path", default='', type=str)
+    parser.add_argument("--pretrained_model_path", help="the pretrained model path", default='/hdd2/xujing/project/megaface2/models/arc2_100layer_644000.pth', type=str)
 
 
 

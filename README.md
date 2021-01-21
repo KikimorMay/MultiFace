@@ -4,23 +4,21 @@ MultiFace_Pytorch
 
 ## 1. Intro
 
-- This repo is a implementation of MultiFace[(paper)](https://arxiv.org/abs/1801.07698)
-- Pretrained models are posted, include the [MobileFacenet](https://arxiv.org/abs/1804.07573) and IR-SE50 in the original paper
+- This repo is a implementation of MultiFace
+- Pretrained models are posted, include the [MobileFacenet](https://arxiv.org/abs/1804.07573) and IR-SE100 in the original paper
 
 ------
 
 ## 2. Pretrained Models & Performance
 
-[IR-SE50 @ BaiduNetdisk](https://pan.baidu.com/s/12BUjjwy1uUTEF9HCx5qvoQ), [IR-SE50 @ Onedrive](https://1drv.ms/u/s!AhMqVPD44cDOhkPsOU2S_HFpY9dC)
+ [IR-SE100 @ GoogleDrive](https://drive.google.com/file/d/1Fw5Zal5F5QZtQnQDLCvI0YRPn7Bsw_dO/view?usp=sharing)
 
-| Loss               | LFW(%) | CFP-FP(%) | AgeDB-30(%) | calfw(%) | cplfw(%) |
-| ------------------ | ------ | --------- | ----------- | -------- | :------: |
-| Arcface            | 9962   | 0.9504    | 0.9622      | 0.9557   |  0.9107  |
-| Multi-Arcface(N=2) |        |           |             |          |          |
-| Cosfacce           |        |           |             |          |          |
-| Multi-Cosface(N=2) |        |           |             |          |          |
+| Loss               | AgeDB-30(%) | CFP-FP(%) | calfw(%) | cplfw(%) |
+| ------------------ | :---------: | :-------: | :------: | :------: |
+| Multi-Arcface(N=2) |    98.20    |   98.30   |  96.02   |  93.17   |
+| Multi-Cosface(N=2) |    98.20    |   98.40   |  96.07   |  93.06   |
 
-[Mobilefacenet @ BaiduNetDisk](https://pan.baidu.com/s/1hqNNkcAjQOSxUjofboN6qg), [Mobilefacenet @ OneDrive](https://1drv.ms/u/s!AhMqVPD44cDOhkSMHodSH4rhfb5u)
+[Mobilefacenet @ GoogleDrive](https://drive.google.com/file/d/16zxRC2t7Bi0GzOeiWfXjBW39V1nxd5TV/view?usp=sharing)
 
 | Loss               |  LFW(%)   | CFP-FP(%) | AgeDB-30(%) | calfw(%)  | cplfw(%)  |
 | ------------------ | :-------: | :-------: | :---------: | :-------: | :-------: |
@@ -37,43 +35,15 @@ MultiFace_Pytorch
 
 
 
-## 3. How to use
+## 3. Training and Testing
 
-- clone
+### 3.1 Prepare training dataset
 
-  ```
-  git clone https://github.com/TropComplique/mtcnn-pytorch.git
-  ```
-
-### 3.1 Data Preparation
-
-#### 3.1.1 Prepare Facebank (For testing over camera or video)
-
-Provide the face images your want to detect in the data/face_bank folder, and guarantee it have a structure like following:
-
-```
-data/facebank/
-        ---> id1/
-            ---> id1_1.jpg
-        ---> id2/
-            ---> id2_1.jpg
-        ---> id3/
-            ---> id3_1.jpg
-           ---> id3_2.jpg
-```
-
-#### 3.1.2 download the pretrained model to work_space/model
-
-If more than 1 image appears in one folder, an average embedding will be calculated
-
-#### 3.2.3 Prepare Dataset ( For training)
-
-download the refined dataset: (emore recommended)
+download the refined dataset: (emore recommended, our method is )
 
 - [emore dataset @ BaiduDrive](https://pan.baidu.com/s/1eXohwNBHbbKXh5KHyItVhQ), [emore dataset @ Dropbox](https://www.dropbox.com/s/wpx6tqjf0y5mf6r/faces_ms1m-refine-v2_112x112.zip?dl=0)
-- More Dataset please refer to the [original post](https://github.com/deepinsight/insightface/wiki/Dataset-Zoo)
 
-**Note:** If you use the refined [MS1M](https://arxiv.org/abs/1607.08221) dataset and the cropped [VGG2](https://arxiv.org/abs/1710.08092) dataset, please cite the original papers.
+  **Note:** If you use the refined [MS1M](https://arxiv.org/abs/1607.08221) dataset, please cite the original papers.
 
 - after unzip the files to 'data' path, run :
 
@@ -96,76 +66,45 @@ faces_emore/
             ---> vgg2_fp
 ```
 
-------
-
-### 3.2 detect over camera:
-
-- 1. download the desired weights to model folder:
-
-- [IR-SE50 @ BaiduNetdisk](https://pan.baidu.com/s/12BUjjwy1uUTEF9HCx5qvoQ)
-- [IR-SE50 @ Onedrive](https://1drv.ms/u/s!AhMqVPD44cDOhkPsOU2S_HFpY9dC)
-- [Mobilefacenet @ BaiduNetDisk](https://pan.baidu.com/s/1hqNNkcAjQOSxUjofboN6qg)
-- [Mobilefacenet @ OneDrive](https://1drv.ms/u/s!AhMqVPD44cDOhkSMHodSH4rhfb5u)
-
-- 2 to take a picture, run
-
-  ```
-  python take_pic.py -n name
-  ```
-
-  press q to take a picture, it will only capture 1 highest possibility face if more than 1 person appear in the camera
-
-- 3 or you can put any preexisting photo into the facebank directory, the file structure is as following:
+### 3.2 Training:
 
 ```
-- facebank/
-         name1/
-             photo1.jpg
-             photo2.jpg
-             ...
-         name2/
-             photo1.jpg
-             photo2.jpg
-             ...
-         .....
-    if more than 1 image appears in the directory, average embedding will be calculated
-```
+'''
+# mobilefacenet loss:softmax  num_sphere:2 
+python train.py --num_sphere 2 --work_path [save log and model information]
 
-- 4 to start
+# mobilefacenet loss:arcface  num_sphere:2 
+python train.py --num_sphere 2 --arcface_loss --work_path [save log and model information]
 
-  ```
-  python face_verify.py 
-  ```
+# mobilefacenet loss:cosface  num_sphere:2 
+python train.py --num_sphere 2 --am_softmax_loss --work_path [save log and model information]
 
-- - -
+# resnet50 loss:arcface  num_sphere:2 
+python train.py --num_sphere 2 --arcface_loss --net ir_se -depth 100 --work_path [save log and model information]
 
-### 3.3 detect over video:
+# resnet50 loss:cosface  num_sphere:2 
+python train.py --num_sphere 2 --am_softmax_loss --net ir_se -depth 100 --work_path [save log and model information]
 
 ```
-​```
-python infer_on_video.py -f [video file name] -s [save file name]
-​```
-```
 
-the video file should be inside the data/face_bank folder
+### 3.3 Testing
 
-- Video Detection Demo [@Youtube](https://www.youtube.com/watch?v=6r9RCRmxtHE)
-
-### 3.4 Training:
+Evaluating the model on LFW, Age-DB, CFP-FP, CALFW, CPLFW
 
 ```
-​```
-python train.py -b [batch_size] -lr [learning rate] -e [epochs]
+#pretrained mobilefacenet
+python train.py --pretrain --pretrained_model_path [mobilefacenet_pretrained_model_path]
 
-# python train.py -net mobilefacenet -b 200 -w 4
-​```
+#pretrained resnet50
+python train.py --pretrain -net ir_se -depth 100 --work_path [resnet_pretrained_model_path]
 ```
+
+To evaluate on Megaface, please refer to [megaface-evaluation](https://github.com/deepinx/megaface-evaluation).
 
 ## 4. References 
 
 - This code is based on the implementations of   [TreB1eN/*InsightFace*_Pytorch](https://github.com/TreB1eN/InsightFace_Pytorch) and [deepinsight/insightface](https://github.com/deepinsight/insightface) 
 
-## PS
+## Contact
 
-- PRs are welcome, in case that I don't have the resource to train some large models like the 100 and 151 layers model
-- Email : treb1en@qq.com
+- Email :xujing.may@gmail.com

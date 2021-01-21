@@ -82,7 +82,7 @@ def calculate_roc(thresholds, embeddings1, embeddings2, actual_issame, nrof_fold
                                                                                                      test_set])
         _, _, accuracy[fold_idx] = calculate_accuracy(thresholds[best_threshold_index], dist[test_set],
                                                       actual_issame[test_set])
-
+    # calculate the angle information of pairs.  Return the mean and std statistics of same and not same pairs
     angle_info = {}
     if show_angle:
         l = len(dist)

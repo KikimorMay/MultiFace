@@ -177,7 +177,7 @@ class face_learner(object):
                 if tta:
                     fliped = hflip_batch(batch)
                     emb_batch = self.model(batch.to(conf.device)) + self.model(fliped.to(conf.device))
-                    embeddings[idx:idx + conf.batch_size] = l2_norm(emb_batch)
+                    embeddings[idx:idx + conf.batch_size] = l2_norm(emb_batch).cpu()[:, i*conf.embedding_size//n:(i+1)*conf.embedding_size//n]
                 else:
                     embeddings[idx:idx + conf.batch_size] = self.model(batch.to(conf.device)).cpu()[:, i*conf.embedding_size//n:(i+1)*conf.embedding_size//n]
                 idx += conf.batch_size
@@ -186,7 +186,7 @@ class face_learner(object):
                 if tta:
                     fliped = hflip_batch(batch)
                     emb_batch = self.model(batch.to(conf.device)) + self.model(fliped.to(conf.device))
-                    embeddings[idx:] = l2_norm(emb_batch)
+                    embeddings[idx:] = l2_norm(emb_batch).cpu()[:, i*conf.embedding_size//n:(i+1)*conf.embedding_size//n]
                 else:
                     embeddings[idx:] = self.model(batch.to(conf.device)).cpu()[:, i*conf.embedding_size//n:(i+1)*conf.embedding_size//n]
         tpr, fpr, accuracy, best_thresholds, angle_info= evaluate(embeddings, issame, nrof_folds)
@@ -264,24 +264,24 @@ class face_learner(object):
         self.model.load_state_dict(torch.load(conf.pretrained_model_path))
         accuracy, best_threshold, roc_curve_tensor, angle_info = self.evaluate(conf, self.agedb_30,
                                                                                self.agedb_30_issame,
-                                                                               show_angle=True)
+                                                                               show_angle=True,tta=True)
         print('age_db_acc:', accuracy)
 
-        accuracy, best_threshold, roc_curve_tensor, angle_info = self.evaluate(conf, self.lfw, self.lfw_issame)
+        accuracy, best_threshold, roc_curve_tensor, angle_info = self.evaluate(conf, self.lfw, self.lfw_issame, tta=True)
         print('lfw_acc:', accuracy)
 
         accuracy, best_threshold, roc_curve_tensor, angle_info = self.evaluate(conf, self.cfp_fp,
-                                                                               self.cfp_fp_issame)
+                                                                               self.cfp_fp_issame, tta=True)
         print('cfp_acc:', accuracy)
 
-        accuracy, best_threshold, roc_curve_tensor, angle_info = self.evaluate(conf, self.calfw, self.calfw_issame)
+        accuracy, best_threshold, roc_curve_tensor, angle_info = self.evaluate(conf, self.calfw, self.calfw_issame,tta=True)
         print('calfw_acc:', accuracy)
 
-        accuracy, best_threshold, roc_curve_tensor, angle_info = self.evaluate(conf, self.cplfw, self.cplfw_issame)
+        accuracy, best_threshold, roc_curve_tensor, angle_info = self.evaluate(conf, self.cplfw, self.cplfw_issame, tta=True)
         print('cplfw_acc:', accuracy)
 
         accuracy, best_threshold, roc_curve_tensor, angle_info = self.evaluate(conf, self.vgg2_fp,
-                                                                               self.vgg2_fp_issame)
+                                                                               self.vgg2_fp_issame, tta=True)
         print('vgg2_acc:', accuracy)
 
     def train(self, conf, epochs):
