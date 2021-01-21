@@ -7,12 +7,12 @@ from torchvision import transforms as trans
 def get_config(training = True):
     conf = edict()
     conf.multi_sphere = False
-    conf.data_path = Path('/hdd2/xujing/Dataset')
+    conf.data_path = Path('data/')
 
     conf.work_path = Path('work_path/')
     conf.model_path = conf.work_path/'models'
     conf.log_path = conf.work_path/'log'
-    conf.save_path = '/hdd2/xujing/project/FaceNew'/conf.work_path/'save'
+    conf.save_path = conf.work_path/'save'
     conf.input_size = [112,112]
     conf.embedding_size = 512
     conf.use_mobilfacenet = False
@@ -31,13 +31,10 @@ def get_config(training = True):
                     trans.ToTensor(),
                     trans.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
                 ])
-    # data_mode = ['emore', 'vgg', 'webface' ]
+
     conf.data_mode = 'emore'
-    # conf.vgg_folder = conf.data_path/'faces_vgg_112x112'
-    # conf.ms1m_folder = conf.data_path/'faces_ms1m_112x112'
-    # conf.webface_folder = conf.data_path /'faces_webface_112x112'
     conf.emore_folder = conf.data_path/'faces_emore'
-    conf.batch_size = 100 # irse net depth 50
+    conf.batch_size = 180 # irse net depth 50
     conf.threshold = 0.3
 #   conf.batch_size = 200 # mobilefacenet
 #--------------------Training Config ------------------------    

@@ -20,11 +20,11 @@ if __name__ == '__main__':
     parser.add_argument("-b", "--batch_size", help="batch_size", default=180, type=int)
     parser.add_argument("-w", "--num_workers", help="workers number", default=3, type=int)
     parser.add_argument("-d", "--data_mode", help="use which database ",default='emore', type=str)
-    parser.add_argument("--work_path" ,default='work_path', type=str)
+    parser.add_argument("--work_path",default='work_path', type=str)
     parser.add_argument("--m" ,help='the margin', default=0.3, type=float)
     parser.add_argument("--drop_ratio", help='the drop_ratio', default=0.6, type=float)
     parser.add_argument("--pretrain", action='store_true', default=False, help='load_pretrain_model')
-    parser.add_argument("--pretrained_model_path", help="the pretrained model path", default='/hdd2/xujing/project/megaface2/models/arc2_100layer_644000.pth', type=str)
+    parser.add_argument("--pretrained_model_path", help="the pretrained model path", default='', type=str)
 
 
 
