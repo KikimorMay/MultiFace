@@ -79,10 +79,10 @@ python train.py --num_sphere 2 --arcface_loss --work_path [save log and model in
 # mobilefacenet loss:cosface  num_sphere:2 
 python train.py --num_sphere 2 --am_softmax_loss --work_path [save log and model information]
 
-# resnet50 loss:arcface  num_sphere:2 
+# ir-se100 loss:arcface  num_sphere:2 
 python train.py --num_sphere 2 --arcface_loss --net ir_se -depth 100 --work_path [save log and model information]
 
-# resnet50 loss:cosface  num_sphere:2 
+# ir-se100 loss:cosface  num_sphere:2 
 python train.py --num_sphere 2 --am_softmax_loss --net ir_se -depth 100 --work_path [save log and model information]
 
 ```
@@ -95,7 +95,7 @@ Evaluating the model on LFW, Age-DB, CFP-FP, CALFW, CPLFW
 #pretrained mobilefacenet
 python train.py --pretrain --pretrained_model_path [mobilefacenet_pretrained_model_path]
 
-#pretrained resnet50
+#pretrained ir-se 100
 python train.py --pretrain -net ir_se -depth 100 --work_path [resnet_pretrained_model_path]
 ```
 
