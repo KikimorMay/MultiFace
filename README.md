@@ -4,7 +4,7 @@ MultiFace_Pytorch
 
 ## 1. Intro
 
-- This repo is a implementation of MultiFace
+- This repo is a implementation of [MultiFace](http://arxiv.org/abs/2101.09899)
 - Pretrained models are posted, include the [MobileFacenet](https://arxiv.org/abs/1804.07573) and IR-SE100 in the original paper
 
 ------
