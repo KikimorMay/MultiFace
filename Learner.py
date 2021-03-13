@@ -22,6 +22,7 @@ import pickle
 # from Permenate.conxy import Conxy
 import os
 import torch.distributed as dist
+device_ids = [1, 2, 3, 4]
 
 
 def parameter_num_cal(net):
@@ -86,7 +87,7 @@ class face_learner(object):
                 if conf.multi_sphere:
                     self.optimizer = optim.SGD([
                         {'params': paras_wo_bn[:-1], 'weight_decay': 4e-5},
-                        {'params': [paras_wo_bn[-1]] + self.head.kernel_list, 'weight_decay': 4e-4},
+                        {'params': [paras_wo_bn[-1]] + [self.head.kernel], 'weight_decay': 4e-4},
                         {'params': paras_only_bn}
                     ], lr=conf.lr, momentum=conf.momentum)
                 else:
@@ -98,7 +99,7 @@ class face_learner(object):
             else:
                 if conf.multi_sphere:
                     self.optimizer = optim.SGD([
-                        {'params': paras_wo_bn + self.head.kernel_list, 'weight_decay': 5e-4},
+                        {'params': paras_wo_bn + [self.head.kernel], 'weight_decay': 5e-4},
                         {'params': paras_only_bn}
                     ], lr=conf.lr, momentum=conf.momentum)
                 else:
@@ -107,8 +108,13 @@ class face_learner(object):
                                         {'params': paras_only_bn}
                                     ], lr = conf.lr, momentum = conf.momentum)
 
-
             print(self.optimizer)
+
+            self.model = torch.nn.DataParallel(self.model, device_ids=device_ids)
+            self.model = self.model.cuda(device=device_ids[0])
+            self.head = torch.nn.DataParallel(self.head, device_ids=device_ids)
+            self.head = self.head.cuda(device=device_ids[0])
+
 
             self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, patience=40, verbose=True)
 
@@ -216,8 +222,10 @@ class face_learner(object):
         log_lrs = []
         for i, (imgs, labels) in tqdm(enumerate(self.loader), total=num):
 
-            imgs = imgs.to(conf.device)
-            labels = labels.to(conf.device)
+            # imgs = imgs.to(conf.device)
+            # labels = labels.to(conf.device)
+            imgs = imgs.cuda(device_ids[0])
+            labels = labels.cuda(device_ids[0])
             batch_num += 1          
 
             self.optimizer.zero_grad()
@@ -310,8 +318,10 @@ class face_learner(object):
             for imgs, labels in tqdm(iter(self.loader)):
                 self.model.train()
 
-                imgs = imgs.to(conf.device)
-                labels = labels.to(conf.device)
+                # imgs = imgs.to(conf.device)
+                # labels = labels.to(conf.device)
+                imgs = imgs.cuda(device_ids[0])
+                labels = labels.cuda(device_ids[0])
                 embeddings = self.model(imgs)
                 thetas = self.head(embeddings, labels)
 

@@ -435,18 +435,14 @@ class Arcface(Module):
 
 class ArcfaceMultiSphere(Module):
     # implementation of additive margin softmax loss in https://arxiv.org/abs/1801.05599
-    def __init__(self, embedding_size=512,  classnum=51332,  num_shpere=4, s=64., m=1/5.0):
+    def __init__(self, embedding_size=512, classnum=51332, num_shpere=4, s=64., m=1/5.0):
         super(ArcfaceMultiSphere, self).__init__()
         self.classnum = classnum
         self.num_sphere = num_shpere
-        self.kernel_list = []
+        self.kernel = Parameter(torch.Tensor(embedding_size, classnum))
+        self.kernel.data.uniform_(-1, 1).renorm_(2, 1, 1e-5).mul_(1e5)
         self.each_embeding_size = embedding_size // num_shpere
-        for i in range(num_shpere):
-            para = Parameter(torch.Tensor(self.each_embeding_size, classnum))
-            setattr(self, 'para%i' % i, para)
-            self.kernel_list.append(para)
-            self.kernel_list[i].data.uniform_(-1, 1).renorm_(2, 1, 1e-5).mul_(1e5)
-        # initial kernel
+
         self.m = m # the margin value, default is 0.5
         self.s = s # scalar value default is 64, see normface https://arxiv.org/abs/1704.06369
         self.cos_m = math.cos(m)
@@ -454,14 +450,14 @@ class ArcfaceMultiSphere(Module):
         self.mm = self.sin_m * m  # issue 1
         self.threshold = math.cos(math.pi - m)
         print('ArcfaceMultiSphere head', 'num_sphere is:', num_shpere, 'the margin is:', m)
+
     def forward(self, embbedings, label):
         # weights norm
         nB = len(embbedings)
         output_list = []
-
         for i in range(self.num_sphere):
-            kernel_norm = l2_norm(self.kernel_list[i], axis=0)
-            cos_theta = torch.mm(embbedings[:, i*self.each_embeding_size:(i+1)*self.each_embeding_size], kernel_norm)
+            kernel_norm = l2_norm(self.kernel[i * self.each_embeding_size:(i + 1) * self.each_embeding_size, :], axis=0)
+            cos_theta = torch.mm(embbedings[:, i * self.each_embeding_size:(i + 1) * self.each_embeding_size], kernel_norm)
             cos_theta = cos_theta.clamp(-1, 1)
             cos_theta_2 = torch.pow(cos_theta, 2)
             sin_theta_2 = 1 - cos_theta_2
@@ -477,11 +473,7 @@ class ArcfaceMultiSphere(Module):
             output[idx_, label] = cos_theta_m[idx_, label]
             output *= self.s
             output_list.append(output)
-
         return output_list
-
-
-
 
 
 ##################################  Softmax head #############################################################
@@ -504,32 +496,8 @@ class Softmax(Module):
         return out
 
 ##################################  Softmax_Multi_Sphere head #############################################################
-
-
 class MultiSphereSoftmax(Module):
-    def __init__(self, embedding_size=512,  classnum=51332, num_sphere=4, s=64.):
-        super(MultiSphereSoftmax, self).__init__()
-        self.classnum = classnum
-        self.num_sphere = num_sphere
-        self.s = s
-        self.kernel_list = []
-        self.each_embeding_size = embedding_size // num_sphere
-        for i in range(num_sphere):
-            para = Parameter(torch.Tensor(self.each_embeding_size, classnum))
-            setattr(self, 'para%i' % i, para)
-            self.kernel_list.append(para)
-            self.kernel_list[i].data.uniform_(-1, 1).renorm_(2, 1, 1e-5).mul_(1e5)
-        print('MultiSphereSoftmax head', 'num_sphere is:', num_sphere)
-
-    def forward(self, embbedings, label):
-        output_list = []
-        for i in range(self.num_sphere):
-            kernel_norm = l2_norm(self.kernel_list[i], axis=0)
-            output = torch.mm(embbedings[:, i*self.each_embeding_size:(i+1)*self.each_embeding_size], kernel_norm)
-            output *= self.s
-            output_list.append(output)
-        return output_list
-
+    pass
 
 ##################################  Cosface head #############################################################
     
@@ -559,29 +527,28 @@ class Am_softmax(Module):
         output *= self.s # scale up in order to make softmax work, first introduced in normface
         return output
 
-
 class MultiAm_softmax(Module):
     # implementation of additive margin softmax loss in https://arxiv.org/abs/1801.05599
     def __init__(self, embedding_size=512, classnum=51332, num_sphere=4, m=0.35):
         super(MultiAm_softmax, self).__init__()
         self.classnum = classnum
         self.num_sphere = num_sphere
+
+        self.kernel = Parameter(torch.Tensor(embedding_size, classnum))
+        self.kernel.data.uniform_(-1, 1).renorm_(2, 1, 1e-5).mul_(1e5)
         self.kernel_list = []
         self.each_embeding_size = embedding_size // num_sphere
-        for i in range(num_sphere):
-            para = Parameter(torch.Tensor(self.each_embeding_size, classnum))
-            setattr(self, 'para%i' % i, para)
-            self.kernel_list.append(para)
-            self.kernel_list[i].data.uniform_(-1, 1).renorm_(2, 1, 1e-5).mul_(1e5)
-        print('MultiAm_softmax head', 'num_sphere is:', num_sphere, 'margin is:', m)
-        self.m = m # additive margin recommended by the paper
         self.s = 64. # see normface https://arxiv.org/abs/1704.06369
+
+        print('MultiAm_softmax head', 'num_sphere is:', num_sphere, 'margin is:', m,'s is: ', self.s)
+        self.m = m # additive margin recommended by the paper
     def forward(self, embbedings, label):
         output_list = []
         for i in range(self.num_sphere):
-            kernel_norm = l2_norm(self.kernel_list[i], axis=0)
+            kernel_norm = l2_norm(self.kernel[i * self.each_embeding_size:(i + 1) * self.each_embeding_size, :], axis=0)
             cos_theta = torch.mm(embbedings[:, i * self.each_embeding_size:(i + 1) * self.each_embeding_size],
                                  kernel_norm)
+
             cos_theta = cos_theta.clamp(-1,1) # for numerical stability
             phi = cos_theta - self.m
             label = label.view(-1,1) #size=(B,1)
@@ -593,3 +560,6 @@ class MultiAm_softmax(Module):
             output *= self.s # scale up in order to make softmax work, first introduced in normface
             output_list.append(output)
         return output_list
+
+
+
